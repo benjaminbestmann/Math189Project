@@ -1,0 +1,171 @@
+---
+title: "Final"
+author: "Benjamin Bestmann"
+date: "2023-06-09"
+output: html_document
+---
+## Q 5
+
+#### a
+
+```{r setup, include=FALSE}
+# Set CRAN mirror
+#options(repos = "https://cran.rstudio.com")
+library(MultBiplotR)
+q_5data <- read.csv("protein.csv")
+
+#print(data)
+
+
+```
+
+```{r}
+# Exclude Communist and Region
+test_data <- q_5data[, !(names(q_5data) %in% c("Comunist", "Region"))]
+
+# Do PCA on the data now
+pca_data <- prcomp(test_data, scale = TRUE)
+
+print(pca_data)
+
+# Get the proportional variance
+
+variance_proportion <- (pca_data$sdev^2) / sum(pca_data$sdev^2)
+
+# Cumulate it
+
+cumulative <- cumsum(variance_proportion)
+
+# Reporting it
+
+proportion_of_variance <- variance_proportion[1:5]
+cumulative_variance <- cumulative[5]
+
+proportion_of_variance
+cumulative_variance
+```
+
+#### b
+
+The first 2 components are the 2 most important components in terms of explaining the variance in the data. They have the highest standard deviations and by looking at the rotation matrix you can see which foods impacted these countries protein consumption. For example in PC1, there is a strong negative correlation with eggs so that means that in countries where the consumption of eggs is lower, there tends to be a higher overall protein consumption from other food groups. Conversely, in countries where the consumption of eggs is higher, the overall protein consumption from other food groups may be relatively lower. So if a country eats more eggs, they tend to mainly get their protein from eggs.
+
+This logic can be applied to show that in PC1, eating more Milk and Eggs meant other foods were not needed as much for protein while Cereal and Nuts led to more consumption of other foods for protein.
+
+This extends to PC2 where it is shown that eating more Cereal and White meat meant other foods were not needed as much for protein while more consumption of  Fish and Fruits/Vegetables led to more consumption of other foods for protein.
+
+
+#### c
+```{r}
+
+# Make the biplot
+biplot(pca_data, choices = c(1, 2), scale = 0.25, expand = 0.8)
+
+```
+
+Based on the biplot, Milk seem to be the most correlated with White meat.
+The most negatively correlated variable is Nuts.
+Out of all the variables, the most uncorrelated appears to be Red Meat.
+
+
+#### d
+
+```{r}
+north_data <- subset(q_5data, Region %in% c("North"))
+central_data <- subset(q_5data, Region %in% c("Center"))
+north_data
+central_data
+```
+
+We can see here that in the Northern region, Milk and Cereal tend to be one of the most consumed sources of protein, indicating that other sources are less necessary as determined by PCA1 and PCA2 and their analysis provided above.
+
+The central region continues this trend with Milk and Cereal being the most consumed again with Fish and Fruits/Vegetables being consistently among the lowest consumed products for protein in these countries, confirming that Fish and Fruits/Vegetables consumption was not as necessary for protein consumption, as they encouraged the populations to eat other foods (Milk and Cereal) for protein.
+
+
+## Q 6
+
+The bootstrap is a technique used to estimate the variability of a statistic or make inferences about a population. It involves creating multiple random samples from the original dataset by sampling with replacement. Each sample has the same size as the original dataset but may contain repeated observations.
+
+It is particularly useful for random forest because it helps in creating diverse training sets for each decision tree in the forest. Random forest is a bunch of decision trees, with each tree trained on a different bootstrap sample. By introducing randomness through sampling with replacement, each tree gets to see a slightly different version of the data. This is important because it helps reduce overfitting and improves the overall performance of the model.
+
+In linear regression however, the goal is to find the best-fit line that minimizes the difference between predicted and actual values. The bootstrap resampling doesn't affect the estimation of the regression coefficients. Linear regression models work better with the specific values in the dataset rather than the different variations produced by bootstrap resampling. Therefore, the bootstrap is not as useful for linear regression compared to random forest.
+
+
+## Q 2
+
+#### a
+```{r}
+# load csv file
+library(ISLR2)
+q2_data <- Carseats
+n <- nrow(q2_data)
+
+x <- model.matrix(Sales ~ ., q2_data)[, -1]
+y <- q2_data$Sales
+
+set.seed(123)
+
+# Split the set
+train <- sample(1:nrow(x), nrow(x)*0.8)
+test <- (-train)
+y.test <- y[test]
+
+print('This split is 80% training, 20% testing')
+```
+
+#### b
+```{r}
+library(glmnet)
+# Perform cross-validated ridge regression
+grid <- 10 ^ seq(10, -2, length = 100)
+ridge.mod <- glmnet(x[train, ], y[train], alpha = 0, lambda = grid)
+plot(ridge.mod)
+cv.out <- cv.glmnet(x[train, ], y[train], alpha = 1)
+
+
+# Plot the cross-validated mean squared error (MSE) versus lambda
+plot(cv.out)
+
+# Choose the best lambda (lowest MSE)
+bestlamb <- cv.out$lambda.min
+
+final.model <- glmnet(x[train, ], y[train], alpha = 0, lambda = bestlamb)
+
+# Get the coefficients of the final model
+final.coefficients <- coef(final.model)
+```
+
+#### c
+
+```{r}
+# Predict the sales values for the validation set
+y.pred <- predict(final.model, newx = x[test, ])
+
+# Get RMSE
+rmse <- sqrt(mean((y.pred - y.test) ^ 2))
+
+rmse
+```
+
+#### d
+
+```{r}
+library(randomForest)
+
+# Fit the random forest model on the training data
+rf.model <- randomForest(x[train, ], y[train])
+
+# Predict the sales values for the validation set
+y.pred <- predict(rf.model, newdata = x[test, ])
+
+rmse <- sqrt(mean((y.pred - y.test) ^ 2))
+
+rmse
+```
+
+#### e
+
+When comparing the ridge regression and random forest models, marketing teams may have different preferences based on their specific needs.
+
+For instance, if the marketing team prioritizes understanding the factors driving sales and wants to interpret the impact of different variables, they may prefer the ridge regression model. This model provides coefficient estimates for each predictor variable, giving insights into their direction and magnitude of influence on sales. The marketing team can optimize their strategies and make informed decisions using this.
+
+If they care more about accurate sales predictions, they may lean towards the random forest model despite its slightly higher RMSE. The random forest model excels at describing complex relationships and interactions among variables, which can be valuable when dealing with real-world data commonly found in marketing datasets.
